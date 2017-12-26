@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no" />
+    <title>My Books</title>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"
+    integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="styles/bootstrap.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <!-- Google -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.indigo-pink.min.css">
+    <script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.2.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.2.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/4.2.0/firebase-database.js"></script>
+
+    <!-- Mine -->
+    <link rel="stylesheet" href="styles/style.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="scripts/quagga.min.js"></script>
+    <script src="scripts/configFirebase.js"></script>
+    <script src="scripts/quaggaSettings.js"></script>
+    <script src="scripts/app.js"></script>
+
+    <script type="text/javascript">
+
+    function insereBook(){
+
+        var titulo = $('#titulo').val();
+        var subtitulo = $('#subtitulo').val();
+        var descricao = $('#descricao').val();
+        var autores = $('#autores').val();
+        var dataPublicacao = $('#dataPublicacao').val();
+        var quantidadePaginas = $('#quantidadePaginas').val();
+        var idLivro = btoa(titulo.toUpperCase());
+
+        if(titulo == "" || subtitulo == "" || descricao == "" || autores == ""){
+            showMessage("Campos com * são obrigatórios");
+            return;
+        }
+
+        var dbReference = firebase.database().ref('books/'+globalUserId+'/'+idLivro).set({
+            id: idLivro,
+            titulo: titulo,
+            subTitulo: subtitulo,
+            descricao: descricao,
+            autores: autores,
+            dataPublicacao: dataPublicacao,
+            quantidadePaginas: quantidadePaginas
+        }).then(function () {
+            console.log("Livro Cadastrado no Firebase");
+            showMessage("Livro Cadastrado");
+
+        }).catch(function (error) {
+            console.log("Erro no Cadastro de Livro Firebase");
+            showMessage("Erro ao cadastrar livro");
+        });
+    }
+
+    function populateRegisterBook(data){
+        var autores = "";
+        data.authors.forEach(function (item) {
+            autores += item + '\n';
+        });
+
+        $('#titulo').val(data.title);
+        $('#subtitulo').val(data.subtitle);
+        $('#descricao').val(data.description);
+        $('#autores').val(autores);
+        $('#dataPublicacao').val(data.publishedDate);
+        $('#quantidadePaginas').val(data.pageCount);
+        $('.mdl-textfield').addClass('is-dirty');
+    }
+
+    function searchBook(isbnCode){
+        var carrega_url = "https://www.googleapis.com/books/v1/volumes?q=" + isbnCode;
+        $.ajax({
+            url: carrega_url,
+
+            success: function (data) {
+                console.log(data);
+                var itens = data.totalItems;
+                if(itens){
+                    populateRegisterBook(data.items[0].volumeInfo);
+                }
+                else {
+                    var snackbarContainer = document.querySelector('#toast-error');
+                    var data = {message: "ISBN não encontrado"};
+                    snackbarContainer.MaterialSnackbar.showSnackbar(data);
+                }
+            },
+
+            beforeSend: function () {
+                //$('#loader').css({display:"block"});
+            },
+
+            complete: function () {
+                //$('#loader').css({display:"none"});
+            }
+        });
+    }
+
+    $(document).ready(function () {
+
+        firebase.auth().onAuthStateChanged(function(user) {
+            console.log(user);
+            getUser(user);
+            if (!user) {
+                alert('what is happening');
+                window.location.replace('index.html');
+            }
+        });
+
+        $('#register-book-button').click(function () {
+            insereBook();
+        });
+
+        $('#logout-button').click(function () {
+            deslogarUsuario();
+        });
+    });
+
+    </script>
+</head>
+<body>
+    <div class="modal" id="livestream_scanner">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                    <h4 class="modal-title">Barcode Scanner</h4>
+                </div>
+                <div class="modal-body" style="position: static">
+                    <div id="interactive" class="viewport"></div>
+                    <div class="error"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div>
+
+    <div class="mdl-layout mdl-js-layout mdl-layout--fixed-header">
+        <header class="mdl-layout__header">
+
+            <div class="mdl-layout__header-row">
+                <span class="mdl-layout__title">My Books</span>
+                <div class="mdl-layout-spacer"></div>
+
+                <nav class="mdl-navigation">
+                    <a href="home.html" class="mdl-navigation__link" href="#"><i class="material-icons">home</i></a>
+                </nav>
+
+                <button id="menu-right" class="mdl-button mdl-js-button mdl-button--icon">
+                    <i class="material-icons">more_vert</i>
+                </button>
+
+                <ul class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="menu-right">
+                    <li id="logout-button" class="mdl-menu__item">Sair</li>
+                </ul>
+            </div>
+        </header>
+        <div class="mdl-layout__drawer">
+            <span class="mdl-layout-title">My Books</span>
+        </div>
+        <main class="mdl-layout__content">
+
+            <dialog class="mdl-dialog" id="show-dialog">
+                <h4 class="mdl-dialog__title">Escaneie o código de barras do livro</h4>
+                <div class="mdl-dialog__content" id="scanner-container">
+                </div>
+                <div class="mdl-dialog__actions">
+                    <button type="button" class="mdl-button close">Cancelar</button>
+                </div>
+            </dialog>
+
+            <div class="newbook-main">
+                <center>
+                    <div id="div-titulo" class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input class="mdl-textfield__input" type="text" id="titulo" name="titulo" onblur="verificaBlur(id)">
+                        <label class="mdl-textfield__label" for="titulo">*Titulo</label>
+                    </div>
+                    <br>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input class="mdl-textfield__input" type="text" id="subtitulo" name="subtitulo">
+                        <label class="mdl-textfield__label" for="subtitulo">*Subtitulo</label>
+                    </div>
+                    <br>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <textarea class="mdl-textfield__input" type="text" id="descricao" name="descricao" rows="3"></textarea>
+                        <label class="mdl-textfield__label" for="descricao">*Descrição</label>
+                    </div>
+                    <br>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label" id="div-autores">
+                        <textarea class="mdl-textfield__input" type="text" id="autores" name="autores" rows="2"></textarea>
+                        <label class="mdl-textfield__label" for="autores">*Autores</label>
+                        <div class="mdl-tooltip mdl-tooltip--top" data-mdl-for="div-autores">
+                            Adicione um autor em cada linha
+                        </div>
+                    </div>
+                    <br>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input class="mdl-textfield__input" id="dataPublicacao" name="dataPublicacao"  max="9999-12-31" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
+                        <label class="mdl-textfield__label" for="dataPublicacao">Data de Publicação</label>
+                    </div>
+                    <br>
+                    <div class="mdl-textfield mdl-js-textfield mdl-textfield--floating-label">
+                        <input class="mdl-textfield__input" type="number" id="quantidadePaginas" name="quantidadePaginas">
+                        <label class="mdl-textfield__label" for="quantidadePaginas">Quantidade de Páginas</label>
+                    </div>
+
+                    <div id="toast-error" class="mdl-js-snackbar mdl-snackbar">
+                        <div class="mdl-snackbar__text"></div>
+                        <button class="mdl-snackbar__action" type="button"></button>
+                    </div>
+                </center>
+            </div>
+        </main>
+
+        <footer>
+            <div class="">
+                <button id="camera-button" data-toggle="modal" data-target="#livestream_scanner" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--mini-fab mdl-button--colored">
+                    <i class="material-icons">camera_enhance</i>
+                </button>
+                <div class="mdl-tooltip mdl-tooltip--left" data-mdl-for="camera-button">
+                    Capturar código ISBN
+                </div>
+                <button type="button" id="register-book-button" class="mdl-button mdl-js-button mdl-button--fab mdl-js-ripple-effect mdl-button--colored">
+                    <i class="material-icons">add</i>
+                </button>
+                <div class="mdl-tooltip mdl-tooltip--left" data-mdl-for="register-book-button">
+                    Adicionar Livro
+                </div>
+            </div>
+        </footer>
+    </div>
+
+</body>
+</html>
